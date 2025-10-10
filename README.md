@@ -15,7 +15,13 @@ The following providers are used by this module:
 
 ## Modules
 
-No modules.
+The following Modules are called:
+
+### cognito
+
+Source: ./modules/terraform-aws-ntc-cognito
+
+Version:
 
 ## Resources
 
