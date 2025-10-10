@@ -1,0 +1,14 @@
+formatter: "markdown table" # this is required
+
+output:
+  file: "README.md"
+  mode: inject 
+
+sort:
+  enabled: true
+  by: required
+
+settings:
+  anchor: false
+  indent: 3
+  lockfile: false
