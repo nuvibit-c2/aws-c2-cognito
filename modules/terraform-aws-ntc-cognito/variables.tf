@@ -32,9 +32,13 @@ variable "user_pools" {
     })), [])
 
     app_clients = optional(list(object({
-      name           = string
-      callback_urls  = list(string)
-      supported_idps = list(string)
+      name                    = string
+      callback_urls           = list(string)
+      supported_idps          = list(string)
+      auth_session_validity   = optional(string, "3m")  # format: <number>m (minutes only)
+      refresh_token_validity  = optional(string, "30d") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
+      access_token_validity   = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
+      id_token_validity       = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
     })), [])
 
     m2m_clients = optional(list(object({
@@ -42,6 +46,10 @@ variable "user_pools" {
       accessing_solution_account_id = string
       custom_scope_name             = string
       custom_scope_description      = string
+      auth_session_validity         = optional(string, "3m")  # format: <number>m (minutes only)
+      refresh_token_validity        = optional(string, "30d") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
+      access_token_validity         = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
+      id_token_validity             = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
     })), [])
   }))
 
@@ -164,5 +172,55 @@ variable "user_pools" {
     ])
     error_message = "Each user's group membership must reference a group defined in the same user pool's groups list."
   }
+
+  validation {
+    condition = alltrue([
+      for pool in var.user_pools : alltrue([
+        for client in pool.app_clients :
+        can(regex("^[0-9]+m$", client.auth_session_validity))
+      ])
+    ])
+    error_message = "auth_session_validity must be in format '<number>m' (minutes only). Example: '3m'."
+  }
+
+  validation {
+    condition = alltrue([
+      for pool in var.user_pools : alltrue([
+        for client in pool.app_clients : alltrue([
+          can(regex("^[0-9]+[smhd]$", client.refresh_token_validity)),
+          can(regex("^[0-9]+[smhd]$", client.access_token_validity)),
+          can(regex("^[0-9]+[smhd]$", client.id_token_validity))
+        ])
+      ])
+    ])
+    error_message = "Token validity values (refresh, access, id) must be in format '<number><unit>' where unit is 's' (seconds), 'm' (minutes), 'h' (hours), or 'd' (days). Examples: '30s', '3m', '1h', '30d'."
+  }
+
+  validation {
+    condition = alltrue([
+      for pool in var.user_pools : alltrue([
+        for client in pool.m2m_clients :
+        can(regex("^[0-9]+m$", client.auth_session_validity))
+      ])
+    ])
+    error_message = "auth_session_validity must be in format '<number>m' (minutes only). Example: '3m'."
+  }
+
+  validation {
+    condition = alltrue([
+      for pool in var.user_pools : alltrue([
+        for client in pool.m2m_clients : alltrue([
+          can(regex("^[0-9]+[smhd]$", client.refresh_token_validity)),
+          can(regex("^[0-9]+[smhd]$", client.access_token_validity)),
+          can(regex("^[0-9]+[smhd]$", client.id_token_validity))
+        ])
+      ])
+    ])
+    error_message = "Token validity values (refresh, access, id) must be in format '<number><unit>' where unit is 's' (seconds), 'm' (minutes), 'h' (hours), or 'd' (days). Examples: '30s', '3m', '1h', '30d'."
+  }
 }
 
+# TODO:
+# - custom attributes via schema block
+# - optional waf config
+# - configurable plus features

@@ -26,6 +26,16 @@ data "aws_region" "current" {}
 # ¦ LOCALS
 # ---------------------------------------------------------------------------------------------------------------------
 locals {
+  // Helper function to parse time string (e.g., "30d" -> {value: 30, unit: "days"})
+  parse_time_string = {
+    unit_map = {
+      "s" = "seconds"
+      "m" = "minutes"
+      "h" = "hours"
+      "d" = "days"
+    }
+  }
+
   // User pool domains for use in client mappings
   user_pool_domains = {
     for pool_name, domain in aws_cognito_user_pool_domain.domains :
@@ -42,6 +52,21 @@ locals {
           user_pool_name = pool.name
           callback_urls  = client.callback_urls
           supported_idps = client.supported_idps
+          // Parse auth_session_validity (e.g., "3m" -> 3 minutes, only accepts minutes)
+          auth_session_validity = tonumber(regex("^([0-9]+)m$", client.auth_session_validity)[0])
+          // Parse token validity values (supports s, m, h, d)
+          refresh_token_validity = {
+            value = tonumber(regex("^([0-9]+)[smhd]$", client.refresh_token_validity)[0])
+            unit  = lookup(local.parse_time_string.unit_map, regex("^[0-9]+([smhd])$", client.refresh_token_validity)[0])
+          }
+          access_token_validity = {
+            value = tonumber(regex("^([0-9]+)[smhd]$", client.access_token_validity)[0])
+            unit  = lookup(local.parse_time_string.unit_map, regex("^[0-9]+([smhd])$", client.access_token_validity)[0])
+          }
+          id_token_validity = {
+            value = tonumber(regex("^([0-9]+)[smhd]$", client.id_token_validity)[0])
+            unit  = lookup(local.parse_time_string.unit_map, regex("^[0-9]+([smhd])$", client.id_token_validity)[0])
+          }
         }
       ]
     ]) : item.key => item
@@ -116,6 +141,21 @@ locals {
           accessing_solution_account_id = client.accessing_solution_account_id
           custom_scope_name             = client.custom_scope_name
           custom_scope_description      = client.custom_scope_description
+          // Parse auth_session_validity (e.g., "3m" -> 3 minutes, only accepts minutes)
+          auth_session_validity = tonumber(regex("^([0-9]+)m$", client.auth_session_validity)[0])
+          // Parse token validity values (supports s, m, h, d)
+          refresh_token_validity = {
+            value = tonumber(regex("^([0-9]+)[smhd]$", client.refresh_token_validity)[0])
+            unit  = lookup(local.parse_time_string.unit_map, regex("^[0-9]+([smhd])$", client.refresh_token_validity)[0])
+          }
+          access_token_validity = {
+            value = tonumber(regex("^([0-9]+)[smhd]$", client.access_token_validity)[0])
+            unit  = lookup(local.parse_time_string.unit_map, regex("^[0-9]+([smhd])$", client.access_token_validity)[0])
+          }
+          id_token_validity = {
+            value = tonumber(regex("^([0-9]+)[smhd]$", client.id_token_validity)[0])
+            unit  = lookup(local.parse_time_string.unit_map, regex("^[0-9]+([smhd])$", client.id_token_validity)[0])
+          }
         }
       ]
     ]) : item.key => item
@@ -175,7 +215,7 @@ resource "aws_cognito_user_pool" "user_pools" {
   }
 
   user_pool_add_ons {
-    advanced_security_mode = "AUDIT"
+    advanced_security_mode = "AUDIT" # TODO: make configurable in a "plus feature block"
   }
 
   admin_create_user_config {
@@ -247,19 +287,20 @@ resource "aws_cognito_user_pool_client" "app_clients" {
   enable_token_revocation              = true
   prevent_user_existence_errors        = "ENABLED"
   callback_urls                        = each.value.callback_urls
+  auth_session_validity                = each.value.auth_session_validity
 
   # Use the supported_idps list from the client configuration
   supported_identity_providers = each.value.supported_idps
 
   token_validity_units {
-    access_token  = "hours"
-    id_token      = "hours"
-    refresh_token = "days"
+    access_token  = each.value.access_token_validity.unit
+    id_token      = each.value.id_token_validity.unit
+    refresh_token = each.value.refresh_token_validity.unit
   }
 
-  access_token_validity  = 1
-  id_token_validity      = 1
-  refresh_token_validity = 30
+  access_token_validity  = each.value.access_token_validity.value
+  id_token_validity      = each.value.id_token_validity.value
+  refresh_token_validity = each.value.refresh_token_validity.value
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -352,16 +393,17 @@ resource "aws_cognito_user_pool_client" "m2m_clients" {
   enable_token_revocation              = true
   generate_secret                      = true
   prevent_user_existence_errors        = "ENABLED"
+  auth_session_validity                = each.value.auth_session_validity
 
   token_validity_units {
-    access_token  = "hours"
-    id_token      = "hours"
-    refresh_token = "days"
+    access_token  = each.value.access_token_validity.unit
+    id_token      = each.value.id_token_validity.unit
+    refresh_token = each.value.refresh_token_validity.unit
   }
 
-  access_token_validity  = 1
-  id_token_validity      = 1
-  refresh_token_validity = 30
+  access_token_validity  = each.value.access_token_validity.value
+  id_token_validity      = each.value.id_token_validity.value
+  refresh_token_validity = each.value.refresh_token_validity.value
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
