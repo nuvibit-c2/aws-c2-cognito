@@ -222,13 +222,31 @@ resource "aws_cognito_user_pool" "user_pools" {
     allow_admin_create_user_only = true
   }
 
-  schema {
-    attribute_data_type      = "String"
-    name                     = "AadGroups"
-    developer_only_attribute = false
-    mutable                  = true
-    required                 = false
-    string_attribute_constraints {}
+  dynamic "schema" {
+    for_each = each.value.custom_attributes
+    content {
+      attribute_data_type      = schema.value.attribute_data_type
+      name                     = schema.value.name
+      developer_only_attribute = schema.value.developer_only_attribute
+      mutable                  = schema.value.mutable
+      required                 = schema.value.required
+
+      dynamic "string_attribute_constraints" {
+        for_each = schema.value.attribute_data_type == "String" && schema.value.string_attribute_constraints != null ? [schema.value.string_attribute_constraints] : []
+        content {
+          min_length = string_attribute_constraints.value.min_length
+          max_length = string_attribute_constraints.value.max_length
+        }
+      }
+
+      dynamic "number_attribute_constraints" {
+        for_each = schema.value.attribute_data_type == "Number" && schema.value.number_attribute_constraints != null ? [schema.value.number_attribute_constraints] : []
+        content {
+          min_value = number_attribute_constraints.value.min_value
+          max_value = number_attribute_constraints.value.max_value
+        }
+      }
+    }
   }
 
 }
