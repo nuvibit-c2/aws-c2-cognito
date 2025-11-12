@@ -259,6 +259,20 @@ resource "aws_cognito_user_pool_domain" "domains" {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
+# ¦ WAF ASSOCIATIONS
+# ---------------------------------------------------------------------------------------------------------------------
+resource "aws_wafv2_web_acl_association" "user_pool_waf" {
+  for_each = {
+    for pool in var.user_pools :
+    pool.name => pool.waf_configuration
+    if pool.waf_configuration != null
+  }
+
+  resource_arn = aws_cognito_user_pool.user_pools[each.key].arn
+  web_acl_arn  = each.value.web_acl_arn
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
 # ¦ IDENTITY PROVIDERS
 # ---------------------------------------------------------------------------------------------------------------------
 resource "aws_cognito_identity_provider" "idps" {
