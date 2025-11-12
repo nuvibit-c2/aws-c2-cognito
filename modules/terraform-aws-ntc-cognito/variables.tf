@@ -53,6 +53,10 @@ variable "user_pools" {
       advanced_security_mode = "OFF"
     })
 
+    waf_configuration = optional(object({
+      web_acl_arn = string # ARN of the WAFv2 Web ACL to associate with the user pool
+    }))
+
     app_clients = optional(list(object({
       name                    = string
       callback_urls           = list(string)
@@ -283,6 +287,3 @@ variable "user_pools" {
     error_message = "All custom attributes referenced in IdP attribute_mapping (format: 'custom:attribute_name') must be defined in the user pool's custom_attributes list."
   }
 }
-
-# TODO:
-# - optional waf config
