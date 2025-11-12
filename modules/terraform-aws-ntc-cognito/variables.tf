@@ -31,6 +31,22 @@ variable "user_pools" {
       attributes = optional(map(string), {})
     })), [])
 
+    custom_attributes = optional(list(object({
+      name                     = string
+      attribute_data_type      = string # String, Number, DateTime, Boolean
+      developer_only_attribute = optional(bool, false)
+      mutable                  = optional(bool, true)
+      required                 = optional(bool, false)
+      string_attribute_constraints = optional(object({
+        min_length = optional(number)
+        max_length = optional(number)
+      }))
+      number_attribute_constraints = optional(object({
+        min_value = optional(number)
+        max_value = optional(number)
+      }))
+    })), [])
+
     app_clients = optional(list(object({
       name                    = string
       callback_urls           = list(string)
@@ -163,6 +179,25 @@ variable "user_pools" {
 
   validation {
     condition = alltrue([
+      for pool in var.user_pools : length(pool.custom_attributes) == length(distinct([
+        for attr in pool.custom_attributes : attr.name
+      ]))
+    ])
+    error_message = "Each custom attribute name must be unique within a user pool."
+  }
+
+  validation {
+    condition = alltrue([
+      for pool in var.user_pools : alltrue([
+        for attr in pool.custom_attributes :
+        contains(["String", "Number", "DateTime", "Boolean"], attr.attribute_data_type)
+      ])
+    ])
+    error_message = "Each custom attribute data type must be one of: String, Number, DateTime, or Boolean."
+  }
+
+  validation {
+    condition = alltrue([
       for pool in var.user_pools : alltrue([
         for user in pool.users : alltrue([
           for group_name in user.groups :
@@ -218,9 +253,23 @@ variable "user_pools" {
     ])
     error_message = "Token validity values (refresh, access, id) must be in format '<number><unit>' where unit is 's' (seconds), 'm' (minutes), 'h' (hours), or 'd' (days). Examples: '30s', '3m', '1h', '30d'."
   }
+
+  validation {
+    condition = alltrue([
+      for pool in var.user_pools : alltrue([
+        for idp in pool.idps : alltrue([
+          for attr_key, attr_value in coalesce(idp.attribute_mapping, {}) :
+          # For each attribute mapping key (Cognito attribute), check if it starts with "custom:"
+          # If it does, verify that the custom attribute (without "custom:" prefix) is defined in custom_attributes
+          # Logic: either it's NOT a custom attribute (!startswith) OR it exists in the list (contains)
+          !startswith(attr_key, "custom:") || contains([for ca in pool.custom_attributes : "custom:${ca.name}"], attr_key)
+        ])
+      ])
+    ])
+    error_message = "All custom attributes referenced in IdP attribute_mapping (format: 'custom:attribute_name') must be defined in the user pool's custom_attributes list."
+  }
 }
 
 # TODO:
-# - custom attributes via schema block
 # - optional waf config
 # - configurable plus features
