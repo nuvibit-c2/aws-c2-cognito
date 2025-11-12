@@ -63,3 +63,55 @@ locals {
     # ProvisionedBy = "aws-xx-yyy"
   }
 }
+# ---------------------------------------------------------------------------------------------------------------------
+# ¦ COGNITO MODULE
+# ---------------------------------------------------------------------------------------------------------------------
+module "cognito" {
+  source = "./modules/terraform-aws-ntc-cognito"
+
+  user_pools = [
+    {
+      name = "c2-user-pool"
+
+      domain = {
+        name = "c2-user-pool"
+      }
+
+      idps = [
+        {
+          provider_name = "entra-id"
+          provider_type = "SAML"
+          provider_details = {
+            MetadataURL             = "https://login.microsoftonline.com/2e952181-6766-456a-b998-3bd7c1327084/FederationMetadata/2007-06/FederationMetadata.xml" # TODO: Add app specific metadata URL here
+            EncryptedResponses      = "false"
+            RequestSigningAlgorithm = "rsa-sha256"
+          }
+          attribute_mapping = {
+            name        = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+            given_name  = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname"
+            family_name = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname"
+
+          }
+        }
+      ]
+
+      groups = []
+      users  = []
+      app_clients = [
+        {
+          name           = "test-client"
+          callback_urls  = ["https://oauth.pstmn.io/v1/callback"]
+          supported_idps = ["entra-id"]
+        }
+      ]
+      m2m_clients = [
+        {
+          name                          = "m2m-test-client"
+          accessing_solution_account_id = data.aws_caller_identity.current.account_id
+          custom_scope_name             = "api.read"
+          custom_scope_description      = "Test M2M client for API read access"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+# Terraform/OpenTofu files
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Test output files
+*.log
+test-results/
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Backup files
+*.backup
+*.bak
+
+# Environment variable files
+.env
+.envrc

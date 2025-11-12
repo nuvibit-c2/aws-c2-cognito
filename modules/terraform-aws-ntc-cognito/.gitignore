@@ -1,0 +1,17 @@
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+
+#Terrform lock files
+*.lock.hcl
+*.tfvars
+
+# Lambda function builds (e.g. terraform test)
+functions/*.zip
+/builds
