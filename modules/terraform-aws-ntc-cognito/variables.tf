@@ -47,6 +47,12 @@ variable "user_pools" {
       }))
     })), [])
 
+    plus_features = optional(object({
+      advanced_security_mode = optional(string, "OFF") # OFF (Essentials tier), AUDIT, or ENFORCED (Plus tier)
+    }), {
+      advanced_security_mode = "OFF"
+    })
+
     app_clients = optional(list(object({
       name                    = string
       callback_urls           = list(string)
@@ -198,6 +204,14 @@ variable "user_pools" {
 
   validation {
     condition = alltrue([
+      for pool in var.user_pools :
+      contains(["OFF", "AUDIT", "ENFORCED"], pool.plus_features.advanced_security_mode)
+    ])
+    error_message = "advanced_security_mode must be one of: OFF (Essentials tier, default), AUDIT (Plus tier), or ENFORCED (Plus tier)."
+  }
+
+  validation {
+    condition = alltrue([
       for pool in var.user_pools : alltrue([
         for user in pool.users : alltrue([
           for group_name in user.groups :
@@ -272,4 +286,3 @@ variable "user_pools" {
 
 # TODO:
 # - optional waf config
-# - configurable plus features
