@@ -215,7 +215,7 @@ resource "aws_cognito_user_pool" "user_pools" {
   }
 
   user_pool_add_ons {
-    advanced_security_mode = "AUDIT" # TODO: make configurable in a "plus feature block"
+    advanced_security_mode = each.value.plus_features.advanced_security_mode
   }
 
   admin_create_user_config {
