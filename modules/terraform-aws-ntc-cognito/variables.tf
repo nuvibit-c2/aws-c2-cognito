@@ -49,7 +49,7 @@ variable "user_pools" {
 
     plus_features = optional(object({
       advanced_security_mode = optional(string, "OFF") # OFF (Essentials tier), AUDIT, or ENFORCED (Plus tier)
-    }), {
+      }), {
       advanced_security_mode = "OFF"
     })
 
@@ -58,13 +58,13 @@ variable "user_pools" {
     }))
 
     app_clients = optional(list(object({
-      name                    = string
-      callback_urls           = list(string)
-      supported_idps          = list(string)
-      auth_session_validity   = optional(string, "3m")  # format: <number>m (minutes only)
-      refresh_token_validity  = optional(string, "30d") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
-      access_token_validity   = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
-      id_token_validity       = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
+      name                   = string
+      callback_urls          = list(string)
+      supported_idps         = list(string)
+      auth_session_validity  = optional(string, "3m")  # format: <number>m (minutes only)
+      refresh_token_validity = optional(string, "30d") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
+      access_token_validity  = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
+      id_token_validity      = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)
     })), [])
 
     m2m_clients = optional(list(object({
