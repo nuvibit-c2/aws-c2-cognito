@@ -9,40 +9,42 @@ The module creates a complete, production-ready authentication infrastructure th
 - Provides secure OAuth 2.0/OIDC integration for web and mobile applications
 - Enables machine-to-machine authentication with client credentials flow
 - Implements fine-grained access control through groups
-- Manages secrets securely in AWS Secrets Manager
-- Supports custom domains with ACM certificates
+- Manages M2M secrets securely in AWS Secrets Manager with KMS encryption
+- Supports custom and Cognito-hosted domains with optional ACM certificates
 
 ## 📋 Features
 
 ### **Authentication Strategies**
 - **IdP Federation**: SAML, OIDC, and social providers (Google, Facebook, Amazon, Apple)
 - **Manual User Management**: Built-in Cognito authentication with direct user provisioning
-- **Flexible Configuration**: Mix IdPs with manual groups, or go fully manual
+- **Mutual Exclusivity**: User pools can use IdPs OR manual users, but not both (enforced by validation)
 
 ### **OAuth 2.0 & App Clients**
-- OAuth 2.0 app clients with callback URL management
-- Support for multiple IdPs per client
-- Automatic authorization and token endpoints
-- Client credentials for M2M authentication
+- OAuth 2.0 app clients with configurable callback URLs
+- Support for multiple IdPs per client (validated against pool's IdP list)
+- Client credentials flow for M2M authentication
+- Configurable token validity (supports seconds, minutes, hours, days)
 
 ### **Access Control**
-- Group-based authorization model
-- User-to-group membership management
-- Precedence-based group hierarchy
-- Custom attributes support
+- User-to-group membership management (validated against defined groups)
+- Custom schema attributes with data type constraints
+- Attribute mapping from IdPs to Cognito attributes (including custom attributes)
 
 ### **Security**
-- Customer-managed KMS encryption for M2M secrets
-- AWS Secrets Manager integration with automatic rotation support
-- HTTPS-only domain access
-- Advanced security mode (audit/enforcement)
-- Account recovery via admin-only
+- Customer-managed KMS encryption per user pool for M2M secrets
+- AWS Secrets Manager integration with cross-account access policies
+- Admin-only account recovery (no self-service password reset)
+- Advanced security mode support (OFF, AUDIT, ENFORCED)
+- WAFv2 Web ACL association support
+- Admin-only user creation enforced
+- Token revocation enabled by default
+- Prevention of user existence errors
 
 ### **Scalability**
 - Multiple user pools in a single deployment
 - Dynamic resource creation based on configuration
-- Centralized secrets management
-- Cross-account access for M2M clients
+- Centralized secrets management per user pool
+- Cross-account KMS and Secrets Manager access for M2M clients
 
 ## 🏗️ Architecture
 
@@ -51,31 +53,32 @@ The module creates a complete, production-ready authentication infrastructure th
 │                           Cognito User Pool Module                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌─────────────────────────┐  │
-│  │   User Pools     │  │  Custom Domains  │  │  Identity Providers     │  │
-│  │                  │  │                  │  │                         │  │
-│  │ • Admin create   │  │ • Cognito domain │  │ • SAML (EntraID, etc)  │  │
-│  │   only mode      │  │ • Custom domain  │  │ • OIDC providers       │  │
-│  │ • Custom schema  │  │ • ACM cert       │  │ • Social (Google, FB)  │  │
-│  │ • Advanced sec   │  │   integration    │  │ • Attribute mapping    │  │
-│  └──────────────────┘  └──────────────────┘  └─────────────────────────┘  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌─────────────────────────┐    │
+│  │   User Pools     │  │  Custom Domains  │  │  Identity Providers     │    │
+│  │                  │  │                  │  │                         │    │
+│  │ • Admin create   │  │ • Custom domain  │  │ • SAML (EntraID, etc)   │    │
+│  │   only mode      │  │ • Cognito domain │  │ • OIDC providers        │    │
+│  │ • Custom schema  │  │ • ACM cert       │  │ • Social (Google, FB)   │    │
+│  │ • Advanced sec   │  │   (optional)     │  │ • Attribute mapping     │    │
+│  │ • WAF assoc      │  │                  │  │ • IdP identifiers       │    │
+│  └──────────────────┘  └──────────────────┘  └─────────────────────────┘    │
 │                                                                             │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌─────────────────────────┐  │
-│  │   App Clients    │  │   M2M Clients    │  │  Groups & Users         │  │
-│  │                  │  │                  │  │                         │  │
-│  │ • OAuth 2.0      │  │ • Client creds   │  │ • Group hierarchy      │  │
-│  │ • Multi-IdP      │  │ • Resource       │  │ • User provisioning    │  │
-│  │ • Callback URLs  │  │   servers        │  │ • Membership mgmt      │  │
-│  │ • Token config   │  │ • Scopes         │  │ • Custom attributes    │  │
-│  └──────────────────┘  └──────────────────┘  └─────────────────────────┘  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌─────────────────────────┐    │
+│  │   App Clients    │  │   M2M Clients    │  │  Groups & Users         │    │
+│  │                  │  │                  │  │                         │    │
+│  │ • OAuth 2.0      │  │ • Client creds   │  │ • Group hierarchy       │    │
+│  │ • Multi-IdP      │  │ • Resource       │  │ • User provisioning     │    │
+│  │ • Callback URLs  │  │   servers        │  │ • Membership mgmt       │    │
+│  │ • Token config   │  │ • Custom scopes  │  │ • Custom attributes     │    │
+│  └──────────────────┘  └──────────────────┘  └─────────────────────────┘    │
 │                                                                             │
-│  ┌──────────────────┐  ┌──────────────────┐                                │
-│  │  Secrets Mgmt    │  │  KMS Encryption  │                                │
-│  │                  │  │                  │                                │
-│  │ • M2M secrets    │  │ • Per-client key │                                │
-│  │ • Auto-rotation  │  │ • Cross-account  │                                │
-│  │ • AMA access     │  │   access         │                                │
-│  └──────────────────┘  └──────────────────┘                                │
+│  ┌──────────────────┐  ┌──────────────────┐                                 │
+│  │  Secrets Mgmt    │  │  KMS Encryption  │                                 │
+│  │                  │  │                  │                                 │
+│  │ • M2M secrets    │  │ • Per-pool key   │                                 │
+│  │ • Cross-account  │  │ • Cross-account  │                                 │
+│  │   access         │  │   access         │                                 │
+│  └──────────────────┘  └──────────────────┘                                 │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -108,6 +111,46 @@ The module creates a complete, production-ready authentication infrastructure th
 │          │  Creds  │ Endpoint │  Token  │    B     │
 └──────────┘         └──────────┘         └──────────┘
 ```
+
+## ⚠️ Important Constraints & Validations
+
+The module enforces several important validations to ensure proper configuration:
+
+### Mutual Exclusivity: IdPs vs. Manual Users
+- **User pools with IdPs configured (idps != []) CANNOT have manual users**
+- **User pools without IdPs (idps = []) CAN have manual users**
+- This is enforced by validation: `length(pool.users) == 0 || length(pool.idps) == 0`
+
+### App Client IdP References
+- All IdPs listed in `app_clients[].supported_idps` must exist in the pool's `idps[].provider_name` list
+- Use `"COGNITO"` for built-in authentication
+
+### User Group Memberships
+- All groups referenced in `users[].groups` must be defined in the pool's `groups[].name` list
+- This ensures referential integrity for user-to-group assignments
+
+### Custom Attribute Mapping
+- Custom attributes referenced in IdP `attribute_mapping` (format: `"custom:AttributeName"`) must be defined in `custom_attributes[].name`
+- Example: To map `"custom:AadGroups"`, you must define an attribute with `name = "AadGroups"` in `custom_attributes`
+
+### Token Validity Format
+- `auth_session_validity`: Must use format `<number>m` (minutes only), e.g., `"3m"`
+- `refresh_token_validity`, `access_token_validity`, `id_token_validity`: Must use format `<number><unit>` where unit is:
+  - `s` = seconds
+  - `m` = minutes
+  - `h` = hours
+  - `d` = days
+  - Examples: `"30s"`, `"60m"`, `"1h"`, `"30d"`
+
+### Naming Constraints
+- User pool names: 1-128 characters
+- IdP provider names: 1-32 characters (unique within pool)
+- All names must be unique within their respective scope
+
+### Advanced Security Mode
+- `OFF`: Cognito Essentials tier (default, no cost)
+- `AUDIT`: Cognito Plus tier (additional cost, audit mode)
+- `ENFORCED`: Cognito Plus tier (additional cost, enforcement mode)
 
 ## 🔧 Usage
 
@@ -156,12 +199,15 @@ module "cognito" {
       app_clients = [
         {
           name           = "web-app"
-          solution_name  = "myapp"
           callback_urls  = [
             "https://myapp.com/callback",
             "https://myapp.com/oauth2/idpresponse"
           ]
-          supported_idps = ["EntraID"]
+          supported_idps        = ["EntraID"]
+          auth_session_validity = "3m"     # 3 minutes (default)
+          refresh_token_validity = "30d"   # 30 days (default)
+          access_token_validity  = "60m"   # 60 minutes (default)
+          id_token_validity      = "60m"   # 60 minutes (default)
         }
       ]
     }
@@ -207,7 +253,6 @@ module "cognito_internal" {
           attributes = {
             given_name  = "Admin"
             family_name = "User"
-            department  = "IT"
           }
         },
         {
@@ -220,7 +265,6 @@ module "cognito_internal" {
       app_clients = [
         {
           name           = "internal-portal"
-          solution_name  = "tools"
           callback_urls  = ["https://tools.internal.company.com/callback"]
           supported_idps = ["COGNITO"]
         }
@@ -252,12 +296,20 @@ module "cognito_services" {
           accessing_solution_account_id = "123456789012"
           custom_scope_name             = "api.read"
           custom_scope_description      = "Read access to API resources"
+          auth_session_validity         = "3m"
+          refresh_token_validity        = "30d"
+          access_token_validity         = "60m"
+          id_token_validity             = "60m"
         },
         {
           name                          = "data-pipeline"
           accessing_solution_account_id = "234567890123"
           custom_scope_name             = "data.write"
           custom_scope_description      = "Write access to data lake"
+          auth_session_validity         = "3m"
+          refresh_token_validity        = "30d"
+          access_token_validity         = "1h"
+          id_token_validity             = "1h"
         }
       ]
     }
@@ -276,7 +328,7 @@ module "cognito_multi" {
     {
       name = "customer-auth"
       domain = {
-        name = "customer-login.myapp.com"
+        name            = "customer-login.myapp.com"
         certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/..."
       }
       idps = [
@@ -288,6 +340,10 @@ module "cognito_multi" {
             client_secret    = "google-client-secret"
             authorize_scopes = "email profile openid"
           }
+          attribute_mapping = {
+            email    = "email"
+            username = "sub"
+          }
         },
         {
           provider_name = "Facebook"
@@ -297,16 +353,22 @@ module "cognito_multi" {
             client_secret    = "facebook-app-secret"
             authorize_scopes = "email public_profile"
           }
+          attribute_mapping = {
+            email    = "email"
+            username = "id"
+          }
         }
       ]
       groups = [
         {
-          name       = "premium"
-          precedence = 5
+          name        = "premium"
+          description = "Premium users"
+          precedence  = 5
         },
         {
-          name       = "standard"
-          precedence = 10
+          name        = "standard"
+          description = "Standard users"
+          precedence  = 10
         }
       ]
       app_clients = [
@@ -323,27 +385,51 @@ module "cognito_multi" {
       ]
     },
     
-    # Internal employee pool with corporate SSO
+    # Internal employee pool with corporate SSO and custom attributes
     {
       name = "employee-auth"
       domain = {
-        name = "employee-sso.company.internal"
+        name            = "employee-sso.company.internal"
         certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/..."
       }
+      
+      custom_attributes = [
+        {
+          name                = "AadGroups"
+          attribute_data_type = "String"
+          mutable             = true
+          string_attribute_constraints = {
+            min_length = 0
+            max_length = 2048
+          }
+        },
+        {
+          name                = "EmployeeId"
+          attribute_data_type = "Number"
+          mutable             = false
+          number_attribute_constraints = {
+            min_value = 1
+            max_value = 999999
+          }
+        }
+      ]
+      
       idps = [
         {
           provider_name = "CorporateAD"
           provider_type = "SAML"
           provider_details = {
-            MetadataURL = "https://login.microsoftonline.com/..."
+            MetadataURL = "https://login.microsoftonline.com/tenant-id/federationmetadata/2007-06/federationmetadata.xml"
           }
           attribute_mapping = {
-            email          = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
-            username       = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
-            custom:AadGroups = "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups"
+            email              = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
+            username           = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+            "custom:AadGroups" = "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups"
           }
+          idp_identifiers = []
         }
       ]
+      
       groups = [
         {
           name        = "engineering"
@@ -356,6 +442,15 @@ module "cognito_multi" {
           precedence  = 10
         }
       ]
+      
+      plus_features = {
+        advanced_security_mode = "AUDIT"
+      }
+      
+      waf_configuration = {
+        web_acl_arn = "arn:aws:wafv2:us-east-1:123456789012:regional/webacl/..."
+      }
+      
       app_clients = [
         {
           name           = "internal-tools"
@@ -363,6 +458,7 @@ module "cognito_multi" {
           supported_idps = ["CorporateAD"]
         }
       ]
+      
       m2m_clients = [
         {
           name                          = "monitoring"
@@ -422,7 +518,7 @@ The secret contains JSON with:
 
 ```hcl
 {
-  name = string  # User pool identifier (used in resource names)
+  name = string  # User pool identifier (1-128 chars, used in resource names)
   
   domain = object({
     name            = string           # Domain prefix or custom domain FQDN
@@ -430,37 +526,69 @@ The secret contains JSON with:
   })
   
   idps = list(object({  # Empty list = no IdPs (enables manual user management)
-    provider_name     = string              # Unique name within pool (1-32 chars)
-    provider_type     = string              # SAML, OIDC, Google, Facebook, LoginWithAmazon, SignInWithApple
-    provider_details  = map(string)         # Provider-specific configuration
-    attribute_mapping = optional(map(string))  # Map IdP attributes to Cognito attributes
+    provider_name     = string                 # Unique name within pool (1-32 chars)
+    provider_type     = string                 # SAML, OIDC, Google, Facebook, LoginWithAmazon, SignInWithApple
+    provider_details  = map(string)            # Provider-specific configuration
+    attribute_mapping = optional(map(string))  # Map IdP attributes to Cognito (including custom:*)
     idp_identifiers   = optional(list(string)) # IdP identifiers for discovery
   }))
   
   groups = optional(list(object({  # Can be used with or without IdPs
     name        = string              # Group name (must be unique within pool)
-    description = optional(string)    # Group description
+    description = optional(string)    # Group description (defaults to "Managed by Terraform")
     precedence  = optional(number)    # Lower = higher priority (optional)
   })), [])
   
-  users = optional(list(object({  # ONLY allowed if idps = []
+  users = optional(list(object({  # ONLY allowed if idps = [] (mutually exclusive)
     username   = string                    # Username (must be unique within pool)
     email      = string                    # User email address
     groups     = optional(list(string), []) # List of group names (must exist in groups)
     attributes = optional(map(string), {})  # Additional custom attributes
   })), [])
   
+  custom_attributes = optional(list(object({
+    name                = string                      # Attribute name (without "custom:" prefix)
+    attribute_data_type = string                      # String, Number, DateTime, Boolean
+    developer_only_attribute = optional(bool, false)  # Developer-only flag
+    mutable                  = optional(bool, true)   # Whether attribute can be modified
+    required                 = optional(bool, false)  # Whether attribute is required
+    string_attribute_constraints = optional(object({  # For String type only
+      min_length = optional(number)
+      max_length = optional(number)
+    }))
+    number_attribute_constraints = optional(object({  # For Number type only
+      min_value = optional(number)
+      max_value = optional(number)
+    }))
+  })), [])
+  
+  plus_features = optional(object({
+    advanced_security_mode = optional(string, "OFF")  # OFF (default), AUDIT, or ENFORCED
+  }), { advanced_security_mode = "OFF" })
+  
+  waf_configuration = optional(object({
+    web_acl_arn = string  # ARN of the WAFv2 Web ACL to associate
+  }))
+  
   app_clients = optional(list(object({
-    name           = string         # Client name (must be unique within pool)
-    callback_urls  = list(string)   # OAuth callback URLs
-    supported_idps = list(string)   # List of IdP provider_names or "COGNITO"
+    name                    = string              # Client name (must be unique within pool)
+    callback_urls           = list(string)        # OAuth callback URLs
+    supported_idps          = list(string)        # List of IdP provider_names (must exist in idps)
+    auth_session_validity   = optional(string, "3m")   # Format: <number>m (minutes only)
+    refresh_token_validity  = optional(string, "30d")  # Format: <number><s|m|h|d>
+    access_token_validity   = optional(string, "60m")  # Format: <number><s|m|h|d>
+    id_token_validity       = optional(string, "60m")  # Format: <number><s|m|h|d>
   })), [])
   
   m2m_clients = optional(list(object({
-    name                          = string # M2M client name (must be unique within pool)
-    accessing_solution_account_id = string # AWS Account ID (12-digit number)
-    custom_scope_name             = string # OAuth scope name
-    custom_scope_description      = string # Scope description
+    name                          = string           # M2M client name (must be unique within pool)
+    accessing_solution_account_id = string           # AWS Account ID (12-digit number)
+    custom_scope_name             = string           # OAuth scope name
+    custom_scope_description      = string           # Scope description
+    auth_session_validity         = optional(string, "3m")   # Format: <number>m (minutes only)
+    refresh_token_validity        = optional(string, "30d")  # Format: <number><s|m|h|d>
+    access_token_validity         = optional(string, "60m")  # Format: <number><s|m|h|d>
+    id_token_validity             = optional(string, "60m")  # Format: <number><s|m|h|d>
   })), [])
 }
 ```
@@ -542,12 +670,15 @@ provider_details = {
 {
   "pool-name" = {
     "pool-name_client-name" = {
-      name                          = \"client-name\"\n      user_pool_name                = \"pool-name\"
-      user_pool_id                   = "eu-central-1_ABC123"
-      user_pool_arn                  = "arn:aws:cognito-idp:..."
-      authorize_endpoint             = "https://..."
-      token_endpoint                 = "https://..."
-      secret_arn                     = \"arn:aws:secretsmanager:...\"\n      custom_scope_identifier        = \"pool-name/client-name/scope.name\"\n      accessing_solution_account_id  = \"123456789012\"
+      name                          = "client-name"
+      user_pool_name                = "pool-name"
+      user_pool_id                  = "eu-central-1_ABC123"
+      user_pool_arn                 = "arn:aws:cognito-idp:..."
+      authorize_endpoint            = "https://domain.auth.region.amazoncognito.com/oauth2/authorize"
+      token_endpoint                = "https://domain.auth.region.amazoncognito.com/oauth2/token"
+      secret_arn                    = "arn:aws:secretsmanager:..."
+      custom_scope_identifier       = "pool-name/client-name/scope.name"
+      accessing_solution_account_id = "123456789012"
     }
   }
 }
@@ -569,7 +700,7 @@ provider_details = {
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.9 |
+| terraform | >= 1.8 |
 | archive | 2.7.1 |
 | aws | 5.98.0 |
 
@@ -600,6 +731,7 @@ No modules.
 | [aws_secretsmanager_secret.m2m_secrets](https://registry.terraform.io/providers/hashicorp/aws/5.98.0/docs/resources/secretsmanager_secret) | resource |
 | [aws_secretsmanager_secret_policy.m2m_secret_policies](https://registry.terraform.io/providers/hashicorp/aws/5.98.0/docs/resources/secretsmanager_secret_policy) | resource |
 | [aws_secretsmanager_secret_version.m2m_secret_versions](https://registry.terraform.io/providers/hashicorp/aws/5.98.0/docs/resources/secretsmanager_secret_version) | resource |
+| [aws_wafv2_web_acl_association.user_pool_waf](https://registry.terraform.io/providers/hashicorp/aws/5.98.0/docs/resources/wafv2_web_acl_association) | resource |
 | [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/5.98.0/docs/data-sources/caller_identity) | data source |
 | [aws_iam_policy_document.m2m_kms_policy](https://registry.terraform.io/providers/hashicorp/aws/5.98.0/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.m2m_secret_policies](https://registry.terraform.io/providers/hashicorp/aws/5.98.0/docs/data-sources/iam_policy_document) | data source |
@@ -609,7 +741,7 @@ No modules.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| user\_pools | List of Cognito user pools with their IdPs, domain config, and clients | <pre>list(object({<br/>    name = string<br/>    domain = object({<br/>      name            = string<br/>      certificate_arn = optional(string)<br/>    })<br/><br/>    idps = list(object({<br/>      provider_name     = string<br/>      provider_type     = string<br/>      provider_details  = map(string)<br/>      attribute_mapping = optional(map(string))<br/>      idp_identifiers   = optional(list(string))<br/>    }))<br/><br/>    groups = optional(list(object({<br/>      name        = string<br/>      description = optional(string)<br/>      precedence  = optional(number)<br/>    })), [])<br/><br/>    users = optional(list(object({<br/>      username   = string<br/>      email      = string<br/>      groups     = optional(list(string), [])<br/>      attributes = optional(map(string), {})<br/>    })), [])<br/><br/>    app_clients = optional(list(object({<br/>      name           = string<br/>      callback_urls  = list(string)<br/>      supported_idps = list(string)<br/>    })), [])<br/><br/>    m2m_clients = optional(list(object({<br/>      name                          = string<br/>      accessing_solution_account_id = string<br/>      custom_scope_name             = string<br/>      custom_scope_description      = string<br/>    })), [])<br/>  }))</pre> | n/a | yes |
+| user\_pools | List of Cognito user pools with their IdPs, domain config, and clients | <pre>list(object({<br/>    name = string<br/>    domain = object({<br/>      name            = string<br/>      certificate_arn = optional(string)<br/>    })<br/><br/>    idps = list(object({<br/>      provider_name     = string<br/>      provider_type     = string<br/>      provider_details  = map(string)<br/>      attribute_mapping = optional(map(string))<br/>      idp_identifiers   = optional(list(string))<br/>    }))<br/><br/>    groups = optional(list(object({<br/>      name        = string<br/>      description = optional(string)<br/>      precedence  = optional(number)<br/>    })), [])<br/><br/>    users = optional(list(object({<br/>      username   = string<br/>      email      = string<br/>      groups     = optional(list(string), [])<br/>      attributes = optional(map(string), {})<br/>    })), [])<br/><br/>    custom_attributes = optional(list(object({<br/>      name                     = string<br/>      attribute_data_type      = string # String, Number, DateTime, Boolean<br/>      developer_only_attribute = optional(bool, false)<br/>      mutable                  = optional(bool, true)<br/>      required                 = optional(bool, false)<br/>      string_attribute_constraints = optional(object({<br/>        min_length = optional(number)<br/>        max_length = optional(number)<br/>      }))<br/>      number_attribute_constraints = optional(object({<br/>        min_value = optional(number)<br/>        max_value = optional(number)<br/>      }))<br/>    })), [])<br/><br/>    plus_features = optional(object({<br/>      advanced_security_mode = optional(string, "OFF") # OFF (Essentials tier), AUDIT, or ENFORCED (Plus tier)<br/>    }), {<br/>      advanced_security_mode = "OFF"<br/>    })<br/><br/>    waf_configuration = optional(object({<br/>      web_acl_arn = string # ARN of the WAFv2 Web ACL to associate with the user pool<br/>    }))<br/><br/>    app_clients = optional(list(object({<br/>      name                    = string<br/>      callback_urls           = list(string)<br/>      supported_idps          = list(string)<br/>      auth_session_validity   = optional(string, "3m")  # format: <number>m (minutes only)<br/>      refresh_token_validity  = optional(string, "30d") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)<br/>      access_token_validity   = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)<br/>      id_token_validity       = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)<br/>    })), [])<br/><br/>    m2m_clients = optional(list(object({<br/>      name                          = string<br/>      accessing_solution_account_id = string<br/>      custom_scope_name             = string<br/>      custom_scope_description      = string<br/>      auth_session_validity         = optional(string, "3m")  # format: <number>m (minutes only)<br/>      refresh_token_validity        = optional(string, "30d") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)<br/>      access_token_validity         = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)<br/>      id_token_validity             = optional(string, "60m") # format: <number><unit> where unit is s(seconds), m(minutes), h(hours), or d(days)<br/>    })), [])<br/>  }))</pre> | n/a | yes |
 
 ### Outputs
 
