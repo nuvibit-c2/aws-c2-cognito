@@ -5,23 +5,23 @@ The following requirements are needed by this module:
 
 - terraform (>= 1.5.7)
 
-- aws (~> 5.0)
+- aws (>= 6.0.0)
 
 ## Providers
 
 The following providers are used by this module:
 
-- aws (~> 5.0)
+- aws (>= 6.0.0)
 
 ## Modules
 
 The following Modules are called:
 
-### cognito
+### ntc\_cognito
 
-Source: ./modules/terraform-aws-ntc-cognito
+Source: github.com/nuvibit-terraform-collection/terraform-aws-ntc-cognito-module
 
-Version:
+Version: 1.0.0
 
 ## Resources
 
