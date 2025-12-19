@@ -19,9 +19,9 @@ The following Modules are called:
 
 ### ntc\_cognito
 
-Source: github.com/nuvibit-terraform-collection/terraform-aws-ntc-cognito-module
+Source: github.com/nuvibit-terraform-collection/terraform-aws-ntc-cognito
 
-Version: 1.0.0
+Version: feat/initial
 
 ## Resources
 
