@@ -4,7 +4,7 @@
 # ---------------------------------------------------------------------------------------------------------------------
 module "ntc_cognito" {
   # TODO: Update ref to latest version after release
-  source = "github.com/nuvibit-terraform-collection/terraform-aws-ntc-cognito-module?ref=1.0.0"
+  source = "github.com/nuvibit-terraform-collection/terraform-aws-ntc-cognito?ref=feat/initial"
 
   # (optional) AWS region override - omit to use provider default region
   region = "eu-central-2"
