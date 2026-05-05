@@ -1,6 +1,6 @@
 output "default_region" {
   description = "The default region name"
-  value       = data.aws_region.default.name
+  value       = data.aws_region.default.region
 }
 
 output "account_id" {
