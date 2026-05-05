@@ -166,6 +166,16 @@ module "ntc_cognito" {
           # (optional) ID token validity - format: <number><unit> (s/m/h/d)
           # Default: "60m"
           id_token_validity = "30m"
+
+          # (optional) Generate a client secret for confidential client flows (e.g. server-side apps)
+          # When true, the module stores the secret in AWS Secrets Manager encrypted with KMS
+          # Default: false
+          generate_secret = true
+
+          # (optional) AWS account ID granted cross-account access to read the app client secret
+          # Grants secretsmanager:GetSecretValue and kms:Decrypt to the specified account
+          # Only valid when generate_secret = true. Must be a 12-digit account ID.
+          accessing_solution_account_id = data.aws_caller_identity.current.account_id
         }
       ]
 
